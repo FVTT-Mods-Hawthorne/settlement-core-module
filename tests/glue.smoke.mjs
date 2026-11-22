@@ -25,7 +25,8 @@ test("init, register hook, ready, API round trip", async () => {
   assert.equal(api.all("resources").length, 4);
   await api.saveTile("S", "3,4", { terrain: "grassland", revealed: true, gmNotes: "gm only" });
   await api.setTag("S", "3,4", "low-hills");
-  assert.deepEqual([api.tileDCs("S", "3,4").travel, api.tileDCs("S", "3,4").forage], [16, 15]);
+  assert.deepEqual([api.tileDCs("S", "3,4").travel, api.tileDCs("S", "3,4").forage], [26, 25]);
+  assert.equal(await api.addExplore("S", "3,4"), 1); assert.equal(api.activityDC("research"), 30);
   await api.createSettlement("Home", { sceneId: "S", key: "3,4" }, "main");
   await api.attach({ kind: "settlement", id: "main" }, "portal-hall", true);
   const host = { kind: "tile", sceneId: "S", key: "3,4" };
@@ -40,5 +41,5 @@ test("init, register hook, ready, API round trip", async () => {
   // what players receive
   const pub = JSON.stringify(settings.get("public"));
   assert.ok(!pub.includes("gm only")); assert.ok(!pub.includes("hidden")); assert.ok(pub.includes("hello"));
-  user.isGM = false; assert.equal(api.getTile("S", "3,4").gmNotes, ""); assert.equal(api.tileDCs("S", "3,4").travel, 16);
+  user.isGM = false; assert.equal(api.getTile("S", "3,4").gmNotes, ""); assert.equal(api.tileDCs("S", "3,4").travel, 26);
 });

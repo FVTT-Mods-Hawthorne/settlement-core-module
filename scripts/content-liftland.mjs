@@ -1,6 +1,5 @@
 /** Default content: the Liftland campaign's numbers. Replace or extend any entry with api.define(kind, id, def). */
 const B = (label, complexity, hosts, extra = {}) => ({ label, complexity, hosts, ...extra });
-const FAUNA = ["fauna"], FLORA = ["flora"];
 const D = (label, category, extra = {}) => ({ label, category, renewable: category === "fauna" || category === "flora", skills: ["nature", "athletics"], ...extra });
 
 export const LIFTLAND = {
@@ -23,19 +22,20 @@ export const LIFTLAND = {
     "crystal-waters": { label: "Crystal Waters", states: ["present", "dense"] }
   },
   buildings: {
-    // Dual builds: an Improvement on a matching discoverable, or Infrastructure on a bare tile.
-    "quarry-1": B("Quarry I", 1, ["discoverable", "tile"], { family: "quarry", skills: ["crafting", "athletics"], terrain: ["mountain"], tileTags: ["low-hills", "steep-hills"], discoverableTypes: ["stone-outcrop", "clay-deposit", "sand-deposit"], effects: { yieldStep: 1, workDie: "d4", produces: "materials" } }),
-    "quarry-2": B("Quarry II", 2, ["discoverable", "tile"], { family: "quarry", requires: "quarry-1", needs: ["lumber"], skills: ["crafting", "athletics"], terrain: ["mountain"], tileTags: ["low-hills", "steep-hills"], discoverableTypes: ["stone-outcrop", "clay-deposit", "sand-deposit"], effects: { yieldStep: 1, bonusResources: 1, workDie: "d6", produces: "materials" } }),
-    "fishery-1": B("Fishery I", 1, ["discoverable", "tile"], { family: "fishery", skills: ["crafting", "nature", "survival"], terrain: ["wetland"], tileTags: ["coastal"], discoverableTypes: ["glass-trout-school", "current-serpent-pool", "mud-lurker-bed"], effects: { yieldStep: 1, workDie: "d4", produces: "rations" } }),
-    "fishery-2": B("Fishery II", 2, ["discoverable", "tile"], { family: "fishery", requires: "fishery-1", needs: ["lumber"], skills: ["crafting", "nature"], terrain: ["wetland"], tileTags: ["coastal"], discoverableTypes: ["glass-trout-school", "current-serpent-pool", "mud-lurker-bed"], effects: { yieldStep: 1, bonusResources: 1, workDie: "d6", produces: "rations" } }),
-    "lumber-camp-1": B("Lumber Camp I", 1, ["discoverable", "tile"], { family: "lumber-camp", skills: ["crafting", "survival"], terrain: ["woodland"], discoverableTypes: ["vein-leaf-stand"], effects: { yieldStep: 1, workDie: "d4", produces: "materials" } }),
-    "lumber-camp-2": B("Lumber Camp II", 2, ["discoverable", "tile"], { family: "lumber-camp", requires: "lumber-camp-1", needs: ["stone"], skills: ["crafting", "survival"], terrain: ["woodland"], discoverableTypes: ["vein-leaf-stand"], effects: { yieldStep: 1, bonusResources: 1, workDie: "d6", produces: "materials" } }),
-    // Improvements
-    "trapline-1": B("Trapline I", 1, ["discoverable"], { family: "trapline", skills: ["crafting", "survival"], discoverableCategories: FAUNA, effects: { yieldStep: 1 } }),
-    "trapline-2": B("Trapline II", 2, ["discoverable"], { family: "trapline", requires: "trapline-1", needs: ["lumber"], skills: ["crafting", "survival"], discoverableCategories: FAUNA, effects: { yieldStep: 1, bonusResources: 1 } }),
-    "scaffolding-1": B("Scaffolding I", 1, ["discoverable"], { skills: ["crafting", "athletics"], discoverableTypes: ["nut-tree-stand", "vine-fruit-bower", "canopy-glider-colony"], effects: { yieldStep: 1 } }),
-    "grove-tending-2": B("Grove Tending II", 2, ["discoverable"], { needs: ["lumber"], skills: ["crafting", "nature"], discoverableTypes: ["berry-shrub-thicket", "nut-tree-stand", "vine-fruit-bower", "root-tuber-bed", "herb-cluster"], effects: { yieldStep: 1 } }),
-    "sanctuary-post-2": B("Sanctuary Post II", 2, ["discoverable"], { needs: ["stone"], skills: ["crafting", "nature"], discoverableCategories: ["anomaly"], effects: { yieldStep: 1, sanctuaryStep: -1 } }),
+    // Resource Improvements: general, in levels, on any discovered resource. Total levels on a resource cannot exceed its tier.
+    // Levels 3 and 4 follow the pattern of levels 1 and 2 (weeks = level, Materials per week = level); adjust when the rules fix them.
+    ...Object.fromEntries([1, 2, 3, 4].flatMap(n => [
+      [`yield-${n}`, B(`Yield L${n}`, n, ["discoverable"], { family: "yield", level: n, weeks: n, materialsPerWeek: n === 1 ? 0 : n, ...(n > 1 ? { requires: `yield-${n - 1}` } : {}), effects: { yieldStep: n }, text: "Work yield die one size larger per level." })],
+      [`difficulty-dc-${n}`, B(`Difficulty (DC) L${n}`, n, ["discoverable"], { family: "difficulty-dc", level: n, weeks: n, materialsPerWeek: n === 1 ? 0 : n, ...(n > 1 ? { requires: `difficulty-dc-${n - 1}` } : {}), effects: { workDC: -n }, text: "-1 to the Work DC per level." })],
+      [`difficulty-check-${n}`, B(`Difficulty (Check) L${n}`, n, ["discoverable"], { family: "difficulty-check", level: n, weeks: n, materialsPerWeek: n === 1 ? 0 : n, ...(n > 1 ? { requires: `difficulty-check-${n - 1}` } : {}), effects: { workBonus: n }, text: "+1 to the Work check per level." })]
+    ])),
+    // Resource infrastructure: makes a bare tile workable.
+    "quarry-1": B("Quarry I", 1, ["tile"], { family: "quarry", skills: ["crafting", "athletics"], terrain: ["mountain"], tileTags: ["low-hills", "steep-hills"], effects: { workDie: "d4", produces: "materials" } }),
+    "quarry-2": B("Quarry II", 2, ["tile"], { family: "quarry", requires: "quarry-1", needs: ["lumber"], skills: ["crafting", "athletics"], terrain: ["mountain"], tileTags: ["low-hills", "steep-hills"], effects: { workDie: "d6", produces: "materials" } }),
+    "fishery-1": B("Fishery I", 1, ["tile"], { family: "fishery", skills: ["crafting", "nature", "survival"], terrain: ["wetland"], tileTags: ["coastal"], effects: { workDie: "d4", produces: "rations" } }),
+    "fishery-2": B("Fishery II", 2, ["tile"], { family: "fishery", requires: "fishery-1", needs: ["lumber"], skills: ["crafting", "nature"], terrain: ["wetland"], tileTags: ["coastal"], effects: { workDie: "d6", produces: "rations" } }),
+    "lumber-camp-1": B("Lumber Camp I", 1, ["tile"], { family: "lumber-camp", skills: ["crafting", "survival"], terrain: ["woodland"], effects: { workDie: "d4", produces: "materials" } }),
+    "lumber-camp-2": B("Lumber Camp II", 2, ["tile"], { family: "lumber-camp", requires: "lumber-camp-1", needs: ["stone"], skills: ["crafting", "survival"], terrain: ["woodland"], effects: { workDie: "d6", produces: "materials" } }),
     // Structures (settlement)
     "portal-hall": B("Portal Hall", 2, ["settlement"], { effects: { security: 20, houses: 20 }, text: "Damaged starting Structure. Houses 20 at a Morale penalty." }),
     "workshop-1": B("Workshop I", 1, ["settlement"], { family: "workshop", skills: ["crafting"], text: "Craft rough items and simple tools." }),
@@ -85,8 +85,14 @@ export const LIFTLAND = {
     "stone-foundation": D("Stone Foundation / Collapsed Structure", "remnant", { skills: ["crafting", "athletics"] }), "workshop-remnant": D("Workshop Remnant", "remnant", { skills: ["crafting"] })
   },
   activities: {
-    travel: { label: "Travel", cost: 1, teams: true }, explore: { label: "Explore", cost: 2, teams: true }, forage: { label: "Forage", cost: 2, teams: true },
-    work: { label: "Work", cost: 2, teams: true, dc: 19 }, improve: { label: "Improve", cost: 2, teams: true }, craft: { label: "Craft", cost: 1, teams: true },
-    research: { label: "Research", cost: 1, teams: true }, recover: { label: "Recover", cost: 3, teams: true }, aid: { label: "Aid", cost: 1, teams: false }
+    travel: { label: "Travel", cost: 1, teams: true, dc: 25 },
+    explore: { label: "Explore", cost: 2, teams: true, dc: 25, successesNeeded: 6, targetFlatDC: 11 },
+    forage: { label: "Forage", cost: 2, teams: true, dc: 25 },
+    work: { label: "Work", cost: 2, teams: true, dc: 25 },
+    improve: { label: "Improve", cost: 2, teams: true, dc: 30, dcStep: 2 },
+    craft: { label: "Craft", cost: 1, teams: true, dc: 30 },
+    research: { label: "Research", cost: 1, teams: true, dc: 30, dcStep: 2 },
+    recover: { label: "Recover", cost: 3, teams: true, dc: 20 },
+    aid: { label: "Aid", cost: 1, teams: false, dc: 20 }
   }
 };

@@ -3,8 +3,11 @@ export const SCHEMA = 1;
 export const PHASES = ["upkeep", "assignment", "resolution", "weekEnd"];
 export const KINDS = ["resources", "terrains", "tags", "buildings", "discoverables", "activities"];
 export const HOST_KINDS = ["settlement", "tile", "discoverable"];
-export const COMPLEXITY = { 1: { dc: 12, weeks: 1 }, 2: { dc: 15, weeks: 2 }, 3: { dc: 18, weeks: 3 }, 4: { dc: 22, weeks: 4 }, 5: { dc: 30, weeks: 5 } };
-export const BASE_DC = 15;
+/** Fallback base DCs, used when the activity definition has no dc of its own. */
+export const DEFAULT_DC = { travel: 25, explore: 25, forage: 25, work: 25, improve: 30, craft: 30, research: 30, aid: 20, recover: 20 };
+export const EXPLORES_NEEDED = 6;
+export const DICE = ["d4", "d6", "d8", "d10", "d12"];
+export const activityDC = (reg, id) => Number(reg?.get("activities", id)?.dc ?? DEFAULT_DC[id] ?? 20);
 
 export const uid = () => globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 export const clampInt = (v, min = 0, max = 999999999) => Math.max(min, Math.min(max, Math.trunc(Number(v) || 0)));
@@ -30,7 +33,7 @@ export function createRegistry() {
 /* ---------------------------------------------------------------- blank data */
 export const blankState = () => ({ schema: SCHEMA, revision: 0, week: 0, phase: PHASES[0], settlements: {}, tiles: {}, modules: {} });
 export const blankSlot = () => ({ id: uid(), built: "", pending: null, damaged: false });
-export const blankTile = key => ({ key: String(key), name: "", terrain: "", adjust: 0, tags: {}, revealed: false, unknownResolved: false, discoverables: [], slots: [], notes: "", gmNotes: "", ext: {} });
+export const blankTile = key => ({ key: String(key), name: "", terrain: "", adjust: 0, tags: {}, revealed: false, explores: 0, discoverables: [], slots: [], notes: "", gmNotes: "", ext: {} });
 export const blankDiscoverable = () => ({ id: uid(), type: "", name: "", tier: 1, modifier: "", found: false, slots: [], notes: "", gmNotes: "" });
 export function blankSettlement(id, name, reg) {
   const resources = Object.fromEntries((reg?.all("resources") || []).map(r => [r.id, { amount: 0, access: false }]));
@@ -48,7 +51,7 @@ export function cleanTile(key, raw) {
   const t = { ...blankTile(key), ...obj(raw), key: String(key) };
   t.name = text(t.name, 120); t.terrain = text(t.terrain, 60); t.adjust = clampInt(t.adjust, -20, 20);
   t.tags = Object.fromEntries(Object.entries(obj(t.tags)).filter(([, v]) => v).map(([k, v]) => [text(k, 60), v === true ? true : text(v, 40)]));
-  t.revealed = !!t.revealed; t.unknownResolved = !!t.unknownResolved;
+  t.revealed = !!t.revealed; t.explores = clampInt(t.unknownResolved ? EXPLORES_NEEDED : t.explores, 0, 99); delete t.unknownResolved;
   t.discoverables = (Array.isArray(t.discoverables) ? t.discoverables : []).map(d => ({
     ...blankDiscoverable(), ...obj(d), id: text(d?.id || uid(), 60), type: text(d?.type, 80), name: text(d?.name, 120),
     tier: clampInt(d?.tier, 1, 4), modifier: text(d?.modifier, 60), found: !!d?.found, slots: cleanSlots(d?.slots),
@@ -96,8 +99,13 @@ export function resolveHost(state, ref) {
 }
 
 /* ---------------------------------------------------------------- buildings on hosts */
-export const weeksFor = (def, upgrading = false) => Math.max(1, (COMPLEXITY[def?.complexity]?.weeks || 1) - (upgrading ? 1 : 0));
-export const buildDC = def => COMPLEXITY[def?.complexity]?.dc ?? null;
+const levelOf = def => clampInt(def?.level ?? def?.complexity ?? 1, 1, 99);
+/** Weeks to build. A definition's own `weeks` is exact; otherwise it is the level, minus one when upgrading in place. */
+export const weeksFor = (def, upgrading = false) => def?.weeks ? clampInt(def.weeks, 1, 99) : Math.max(1, levelOf(def) - (upgrading ? 1 : 0));
+/** Improve DC for a building: its own `dc`, else the Improve base plus a step per level above 1. */
+export const buildDC = (def, reg) => def?.dc ?? activityDC(reg, "improve") + (levelOf(def) - 1) * Number(reg?.get("activities", "improve")?.dcStep ?? 2);
+/** Improvement levels in use on a discoverable (a slot being upgraded counts at its new level). */
+export const levelsUsed = (target, reg) => (target?.slots || []).reduce((n, s) => n + levelOf(reg.get("buildings", s.pending?.building || s.built)), 0);
 const family = def => def?.family || def?.id;
 /** Buildings that are finished and working on a host. */
 export const builtOn = (target, reg) => (target?.slots || []).filter(s => s.built && !s.damaged).map(s => reg.get("buildings", s.built)).filter(Boolean);
@@ -122,10 +130,11 @@ export function canAttach(state, reg, ref, buildingId) {
     const prior = target.slots.find(s => s.built === def.requires);
     if (!prior) return { ok: false, reason: `Requires ${reg.get("buildings", def.requires)?.label || def.requires} first` };
     if (prior.pending) return { ok: false, reason: "That slot is already being upgraded" };
+    if (kind === "discoverable" && levelsUsed(target, reg) - levelOf(reg.get("buildings", prior.built)) + levelOf(def) > target.tier) return { ok: false, reason: `A tier ${target.tier} resource holds only ${target.tier} improvement level(s)` };
     return { ok: true, upgradeSlot: prior.id };
   }
   if (sameFamily) return { ok: false, reason: `${def.label} or a version of it is already here` };
-  if (kind === "discoverable" && target.slots.length >= target.tier) return { ok: false, reason: `A tier ${target.tier} resource has only ${target.tier} improvement slot(s)` };
+  if (kind === "discoverable" && levelsUsed(target, reg) + levelOf(def) > target.tier) return { ok: false, reason: `A tier ${target.tier} resource holds only ${target.tier} improvement level(s)` };
   return { ok: true, upgradeSlot: null };
 }
 /** Start a building on a host. An upgrade reuses the earlier level's slot, which keeps working until the upgrade completes. */
@@ -158,7 +167,8 @@ export function setDamaged(state, ref, slotId, damaged) {
 export const buildOptions = (state, reg, ref) => reg.all("buildings").filter(b => canAttach(state, reg, ref, b.id).ok);
 
 /* ---------------------------------------------------------------- tile rules */
-export function isFullyExplored(tile) { return !!tile && tile.revealed && tile.unknownResolved && tile.discoverables.every(d => d.found); }
+/** Fully Explored after enough successful Explores (6 by default), whatever was or was not found. */
+export function isFullyExplored(tile, needed = EXPLORES_NEEDED) { return !!tile && tile.revealed && tile.explores >= needed; }
 export function tileModifiers(tile, reg) {
   const terrain = reg.get("terrains", tile?.terrain) || {};
   let difficulty = Number(terrain.difficulty || 0) + Number(tile?.adjust || 0), forage = Number(terrain.forage || 0);
@@ -172,16 +182,28 @@ export function tileModifiers(tile, reg) {
 const effectSum = (defs, key) => defs.reduce((n, d) => n + Number(d.effects?.[key] || 0), 0);
 /** DCs for the three terrain-driven activities on a tile. travel is null when the tile is impassable. */
 export function tileDCs(tile, reg, { familiar = false } = {}) {
-  const m = tileModifiers(tile, reg), explored = isFullyExplored(tile) ? -2 : 0;
+  const needed = Number(reg.get("activities", "explore")?.successesNeeded ?? EXPLORES_NEEDED);
+  const m = tileModifiers(tile, reg), explored = isFullyExplored(tile, needed) ? -2 : 0;
   const built = builtOn(tile, reg);
   const foodKnown = (tile?.discoverables || []).some(d => d.found && reg.get("discoverables", d.type)?.food) ? -2 : 0;
   return {
-    travel: m.impassable ? null : BASE_DC + m.difficulty + explored + effectSum(built, "travelDC") + (familiar ? -2 : 0),
-    explore: m.impassable ? null : BASE_DC + m.difficulty + explored,
-    forage: m.impassable ? null : BASE_DC + m.forage + explored + foodKnown,
-    impassable: m.impassable, fullyExplored: !!explored
+    travel: m.impassable ? null : activityDC(reg, "travel") + m.difficulty + explored + effectSum(built, "travelDC") + (familiar ? -2 : 0),
+    explore: m.impassable ? null : activityDC(reg, "explore") + m.difficulty + explored,
+    forage: m.impassable ? null : activityDC(reg, "forage") + m.forage + explored + foodKnown,
+    impassable: m.impassable, fullyExplored: !!explored, explores: tile?.explores || 0, exploresNeeded: needed
   };
 }
+/** What Working a discoverable looks like right now: { die, dc, checkBonus, bonusResources, levels, tier }. */
+export function workProfile(state, reg, ref) {
+  const { target, tile } = resolveHost(state, { ...ref, kind: "discoverable" });
+  const built = builtOn(target, reg);
+  const needed = Number(reg.get("activities", "explore")?.successesNeeded ?? EXPLORES_NEEDED);
+  const step = Math.min(DICE.length - 1, clampInt(target.tier, 1, 4) - 1 + effectSum(built, "yieldStep"));
+  return { die: DICE[step], dc: activityDC(reg, "work") + effectSum(built, "workDC") + (isFullyExplored(tile, needed) ? -2 : 0),
+    checkBonus: effectSum(built, "workBonus"), bonusResources: effectSum(built, "bonusResources"), levels: levelsUsed(target, reg), tier: target.tier };
+}
+/** Leaders do not count as population; each adds half their level, rounded down, to a tile's Security. */
+export const leaderSecurity = levels => (levels || []).reduce((n, l) => n + Math.floor(Math.max(0, Number(l) || 0) / 2), 0);
 /** Security generated on a tile by finished buildings, including a settlement whose home is this tile. */
 export function tileSecurity(state, reg, sceneId, key) {
   const tile = getTile(state, sceneId, key); let total = tile ? effectSum(builtOn(tile, reg), "security") : 0;
@@ -239,6 +261,7 @@ export const ACTIONS = {
   "tile.save": { permission: "gm", run(s, a) { const t = ensureTile(s, a.sceneId, a.key); s.tiles[a.sceneId][a.key] = cleanTile(a.key, { ...t, ...obj(a.patch), discoverables: a.patch?.discoverables ?? t.discoverables, slots: t.slots }); } },
   "tile.delete": { permission: "gm", run(s, a) { if (s.tiles[a.sceneId]) delete s.tiles[a.sceneId][a.key]; } },
   "tile.setTag": { permission: "gm", run(s, a) { const t = ensureTile(s, a.sceneId, a.key); if (a.value) t.tags[a.tag] = a.value === true ? true : String(a.value); else delete t.tags[a.tag]; } },
+  "tile.explore": { permission: "gm", run(s, a) { const t = ensureTile(s, a.sceneId, a.key); t.explores = clampInt(t.explores + (a.count ?? 1), 0, 99); return t.explores; } },
   "tile.reveal": { permission: "gm", run(s, a) { ensureTile(s, a.sceneId, a.key).revealed = a.revealed !== false; } },
   "discoverable.add": { permission: "gm", run(s, a, c) {
     const t = ensureTile(s, a.sceneId, a.key); const def = c.reg.get("discoverables", a.data?.type);

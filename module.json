@@ -2,7 +2,7 @@
   "id": "settlement-core",
   "title": "Settlement Core",
   "description": "Library module: shared tiles, resources and buildings, one GM-hosted write pipeline, player-safe views and a week clock, for the Tiles, Settlement and Teams modules to build on.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "library": true,
   "authors": [
     {
@@ -26,6 +26,6 @@
   "socket": true,
   "license": "MIT",
   "url": "https://github.com/Force2reckon/settlement-core-module",
-  "manifest": "https://github.com/Force2reckon/settlement-core-module/releases/download/v0.1.0/module.json",
-  "download": "https://github.com/Force2reckon/settlement-core-module/releases/download/v0.1.0/settlement-core-v0.1.0.zip"
+  "manifest": "https://github.com/Force2reckon/settlement-core-module/releases/download/v0.2.0/module.json",
+  "download": "https://github.com/Force2reckon/settlement-core-module/releases/download/v0.2.0/settlement-core-v0.2.0.zip"
 }

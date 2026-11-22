@@ -1,7 +1,7 @@
 import * as C from "./core.mjs";
 import { LIFTLAND } from "./content-liftland.mjs";
 
-const ID = "settlement-core", CHANNEL = `module.${ID}`, VERSION = "0.1.0";
+const ID = "settlement-core", CHANNEL = `module.${ID}`, VERSION = "0.2.0";
 const STORE_NAME = "Settlement Core — Private State", PAGE_NAME = "State JSON";
 const gm = () => !!game.user?.isGM;
 const authority = () => game.users?.filter(u => u.active && u.isGM).sort((a, b) => a.id.localeCompare(b.id))[0]?.id;
@@ -91,7 +91,7 @@ function onChanged() {
 /* ---------------------------------------------------------------- public API */
 const hostRef = h => h;
 const api = {
-  version: VERSION, PHASES: C.PHASES, COMPLEXITY: C.COMPLEXITY, HOST_KINDS: C.HOST_KINDS,
+  version: VERSION, PHASES: C.PHASES, HOST_KINDS: C.HOST_KINDS, DICE: C.DICE,
   // definitions
   registry,
   define: (kind, id, def) => registry.define(kind, id, def),
@@ -111,7 +111,8 @@ const api = {
   tileModifiers: (sceneId, key) => { const t = C.getTile(getState(), sceneId, key); return t ? C.tileModifiers(t, registry) : null; },
   tileSecurity: (sceneId, key) => C.tileSecurity(getState(), registry, sceneId, key),
   isSecure: C.isSecure, isFullyExplored: (sceneId, key) => C.isFullyExplored(C.getTile(getState(), sceneId, key)),
-  degree: C.degree, buildDC: id => C.buildDC(registry.get("buildings", id)),
+  degree: C.degree, buildDC: id => C.buildDC(registry.get("buildings", id), registry), activityDC: id => C.activityDC(registry, id),
+  workProfile: ref => C.workProfile(getState(), registry, ref), leaderSecurity: C.leaderSecurity,
   builtOn: host => C.builtOn(C.resolveHost(getState(), hostRef(host)).target, registry),
   canAttach: (host, buildingId) => C.canAttach(getState(), registry, host, buildingId),
   buildOptions: host => C.buildOptions(getState(), registry, host),
@@ -125,6 +126,7 @@ const api = {
   },
   saveTile: (sceneId, key, patch) => request("tile.save", { sceneId, key, patch }),
   revealTile: (sceneId, key, revealed = true) => request("tile.reveal", { sceneId, key, revealed }),
+  addExplore: (sceneId, key, count = 1) => request("tile.explore", { sceneId, key, count }),
   setTag: (sceneId, key, tag, value = true) => request("tile.setTag", { sceneId, key, tag, value }),
   addDiscoverable: (sceneId, key, data) => request("discoverable.add", { sceneId, key, data }),
   updateDiscoverable: (sceneId, key, id, patch) => request("discoverable.update", { sceneId, key, id, patch }),

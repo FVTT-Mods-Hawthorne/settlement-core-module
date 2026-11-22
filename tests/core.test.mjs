@@ -23,25 +23,27 @@ test("registry: define, override, content has no dangling references", () => {
     for (const t of b.terrain || []) assert.ok(r.has("terrains", t), b.id);
     for (const t of b.tileTags || []) assert.ok(r.has("tags", t), b.id);
     for (const t of b.discoverableTypes || []) assert.ok(r.has("discoverables", t), `${b.id} -> ${t}`);
-    assert.ok(C.COMPLEXITY[b.complexity], b.id);
+    assert.ok(C.buildDC(b, r) >= 30, b.id);
   }
 });
-test("tile DCs: terrain, hills as tags, water, fully explored", () => {
-  const { r, s } = setup(); const t = C.getTile(s, "S", "1,1");
-  assert.deepEqual([C.tileDCs(t, r).travel, C.tileDCs(t, r).explore, C.tileDCs(t, r).forage], [17, 17, 12]);
+test("tile DCs: base 25, hills as tags, water, six explores", () => {
+  const { r, s } = setup(); const T = () => C.getTile(s, "S", "1,1");
+  assert.deepEqual([C.tileDCs(T(), r).travel, C.tileDCs(T(), r).explore, C.tileDCs(T(), r).forage], [27, 27, 22]);
   run(s, r, "tile.setTag", { sceneId: "S", key: "1,1", tag: "steep-hills", value: true });
-  assert.deepEqual([C.tileDCs(t, r).travel, C.tileDCs(t, r).forage], [20, 15]);
+  assert.deepEqual([C.tileDCs(T(), r).travel, C.tileDCs(T(), r).forage], [30, 25]);
   run(s, r, "tile.setTag", { sceneId: "S", key: "1,1", tag: "steep-hills", value: false });
-  run(s, r, "tile.setTag", { sceneId: "S", key: "1,1", tag: "lifted", value: true }); assert.equal(C.tileDCs(t, r).travel, 17);
+  run(s, r, "tile.setTag", { sceneId: "S", key: "1,1", tag: "lifted", value: true }); assert.equal(C.tileDCs(T(), r).travel, 27);
   const id = run(s, r, "discoverable.add", { sceneId: "S", key: "1,1", data: { type: "root-tuber-bed", tier: 2 } });
-  assert.equal(C.isFullyExplored(t), false);
   run(s, r, "discoverable.update", { sceneId: "S", key: "1,1", id, patch: { found: true } });
-  assert.equal(C.tileDCs(t, r).forage, 10);            // known food source -2
-  run(s, r, "tile.save", { sceneId: "S", key: "1,1", patch: { unknownResolved: true } });
-  const t2 = C.getTile(s, "S", "1,1");
-  assert.equal(C.isFullyExplored(t2), true); assert.equal(C.tileDCs(t2, r).travel, 15); assert.equal(C.tileDCs(t2, r).forage, 8);
+  assert.equal(C.tileDCs(T(), r).forage, 20);            // known food source -2
+  for (let i = 0; i < 5; i++) run(s, r, "tile.explore", { sceneId: "S", key: "1,1" });
+  assert.equal(C.isFullyExplored(T()), false); assert.equal(C.tileDCs(T(), r).explores, 5);
+  assert.equal(run(s, r, "tile.explore", { sceneId: "S", key: "1,1" }), 6);
+  assert.equal(C.isFullyExplored(T()), true); assert.equal(C.tileDCs(T(), r).travel, 25); assert.equal(C.tileDCs(T(), r).forage, 18);
   run(s, r, "tile.save", { sceneId: "S", key: "2,2", patch: { terrain: "water", revealed: true } });
   const w = C.tileDCs(C.getTile(s, "S", "2,2"), r); assert.equal(w.travel, null); assert.match(w.impassable, /vehicle/);
+  r.define("activities", "travel", { label: "Travel", cost: 1, dc: 15 }); assert.equal(C.tileDCs(T(), r).travel, 15);
+  assert.equal(C.validateState({ tiles: { S: { "1,1": { unknownResolved: true } } } }).tiles.S["1,1"].explores, 6);
 });
 test("buildings attach to hosts, levels require the previous level, progress lives on the slot", () => {
   const { r, s, tile } = setup();
@@ -57,15 +59,27 @@ test("buildings attach to hosts, levels require the previous level, progress liv
   assert.equal(p.complete, true); assert.equal(C.getTile(s, "S", "1,1").slots[0].built, "lumber-camp-2");
   assert.equal(C.getTile(s, "S", "1,1").slots.length, 1);
 });
-test("discoverable slots are limited by tier and fit rules", () => {
+test("general improvements: levels count against the resource's tier and change Work", () => {
   const { r, s } = setup();
-  const id = run(s, r, "discoverable.add", { sceneId: "S", key: "1,1", data: { type: "pebble-hen-nest", tier: 1 } });
+  const id = run(s, r, "discoverable.add", { sceneId: "S", key: "1,1", data: { type: "pebble-hen-nest", tier: 2 } });
   const host = { kind: "discoverable", sceneId: "S", key: "1,1", id };
-  assert.equal(C.canAttach(s, r, host, "quarry-1").ok, false);
-  run(s, r, "building.attach", { host, building: "trapline-1", complete: true });
-  assert.match(C.canAttach(s, r, host, "scaffolding-1").reason, /fit|slot/);
-  assert.equal(C.canAttach(s, r, host, "trapline-2").ok, true);               // upgrade reuses the slot
-  assert.ok(C.buildOptions(s, r, host).some(b => b.id === "trapline-2"));
+  assert.deepEqual(C.workProfile(s, r, host), { die: "d6", dc: 25, checkBonus: 0, bonusResources: 0, levels: 0, tier: 2 });
+  assert.equal(C.canAttach(s, r, host, "quarry-1").ok, false);                 // infrastructure does not go on a resource
+  assert.equal(C.canAttach(s, r, host, "yield-2").ok, false);                  // needs L1
+  const y = run(s, r, "building.attach", { host, building: "yield-1" });
+  assert.equal(run(s, r, "building.progress", { host, slotId: y }).complete, true);
+  assert.equal(C.workProfile(s, r, host).die, "d8");
+  run(s, r, "building.attach", { host, building: "difficulty-dc-1", complete: true });
+  assert.equal(C.workProfile(s, r, host).dc, 24); assert.equal(C.workProfile(s, r, host).levels, 2);
+  assert.match(C.canAttach(s, r, host, "yield-2").reason, /level/);            // tier 2 is full: Yield L1 + Difficulty L1
+  assert.match(C.canAttach(s, r, host, "difficulty-check-1").reason, /level/);
+  run(s, r, "discoverable.update", { sceneId: "S", key: "1,1", id, patch: { tier: 3 } });
+  const up = run(s, r, "building.attach", { host, building: "yield-2" }); assert.equal(up, y);
+  assert.equal(run(s, r, "building.progress", { host, slotId: y }).complete, false);   // L2 takes 2 weeks
+  assert.equal(C.workProfile(s, r, host).die, "d10");                           // tier 3 d8, +1 step while L1 still works
+  assert.equal(run(s, r, "building.progress", { host, slotId: y }).complete, true);
+  assert.equal(C.workProfile(s, r, host).die, "d12");
+  assert.equal(C.buildDC(r.get("buildings", "yield-1"), r), 30); assert.equal(C.buildDC(r.get("buildings", "yield-3"), r), 34);
 });
 test("security from tile buildings and a settlement at home", () => {
   const { r, s, tile } = setup();
@@ -75,8 +89,9 @@ test("security from tile buildings and a settlement at home", () => {
   assert.equal(C.isSecure(25, 24), true); assert.equal(C.isSecure(25, 26), false);
   const slot = C.getTile(s, "S", "1,1").slots[0].id; run(s, r, "building.damage", { host: tile, slotId: slot });
   assert.equal(C.tileSecurity(s, r, "S", "1,1"), 20);
-  assert.equal(C.tileDCs(C.getTile(s, "S", "1,1"), r).travel, 17);
-  run(s, r, "building.attach", { host: tile, building: "path-1", complete: true }); assert.equal(C.tileDCs(C.getTile(s, "S", "1,1"), r).travel, 16);
+  assert.equal(C.tileDCs(C.getTile(s, "S", "1,1"), r).travel, 27);
+  run(s, r, "building.attach", { host: tile, building: "path-1", complete: true }); assert.equal(C.tileDCs(C.getTile(s, "S", "1,1"), r).travel, 26);
+  assert.equal(C.leaderSecurity([2, 2, 3, 1, 0]), 3);
 });
 test("resources: amount plus access, never negative", () => {
   const { r, s } = setup();
