@@ -1,0 +1,13 @@
+{
+  "id": "settlement-core",
+  "title": "Settlement Core",
+  "description": "Library module: shared tiles, resources and buildings, one GM-hosted write pipeline, player-safe views and a week clock, for the Tiles, Settlement and Teams modules to build on.",
+  "version": "0.1.0",
+  "library": true,
+  "authors": [{ "name": "Force" }],
+  "compatibility": { "minimum": "14", "verified": "14" },
+  "esmodules": ["scripts/module.mjs"],
+  "languages": [{ "lang": "en", "name": "English", "path": "lang/en.json" }],
+  "socket": true,
+  "license": "MIT"
+}
