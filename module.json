@@ -25,7 +25,7 @@
   ],
   "socket": true,
   "license": "MIT",
-  "url": "https://github.com/Force2reckon/settlement-core-module",
-  "manifest": "https://github.com/Force2reckon/settlement-core-module/releases/download/v0.2.0/module.json",
-  "download": "https://github.com/Force2reckon/settlement-core-module/releases/download/v0.2.0/settlement-core-v0.2.0.zip"
+  "url": "https://github.com/FVTT-Mods-Hawthorne/settlement-core-module",
+  "manifest": "https://github.com/FVTT-Mods-Hawthorne/settlement-core-module/releases/download/v0.2.0/module.json",
+  "download": "https://github.com/FVTT-Mods-Hawthorne/settlement-core-module/releases/download/v0.2.0/settlement-core-v0.2.0.zip"
 }
