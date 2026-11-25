@@ -130,6 +130,18 @@ test("public view hides GM notes, hidden discoverables and unrevealed tiles", ()
   for (const bad of ["secret", "Hidden herbs", "Unseen peak"]) assert.ok(!text.includes(bad), bad);
   assert.ok(text.includes('"a":1'));
 });
+test("bound rules: one action, several steps, same results as the separate calls", () => {
+  const { r, s, tile } = setup();
+  const k = C.bindRules(s, r);
+  k.adjustResource("main", "materials", 5);
+  const slot = k.attach(tile, "lumber-camp-1");
+  assert.equal(k.weeksFor("lumber-camp-2", true), 1); assert.equal(k.weeksFor("yield-2"), 2); assert.equal(k.buildDC("lumber-camp-2"), 32);
+  assert.deepEqual(k.addProgress(tile, slot, 1), { complete: true, progress: 1, needed: 1 });
+  assert.equal(k.builtOn(tile)[0].id, "lumber-camp-1"); assert.equal(k.canAttach(tile, "lumber-camp-2").ok, true);
+  assert.throws(() => k.adjustResource("main", "materials", -6), /Not enough/);
+  assert.equal(k.getSettlement("main").resources.materials.amount, 5); assert.equal(k.tileSecurity("S", "1,1"), 0);
+  assert.equal(k.tileDCs("S", "1,1").travel, 27); assert.equal(k.addExplore("S", "1,1"), 1);
+});
 test("permissions and validation", () => {
   const { r, s } = setup();
   assert.throws(() => run(s, r, "tile.reveal", { sceneId: "S", key: "1,1" }, { reg: r, isGM: false }), /GM/);

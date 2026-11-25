@@ -1,4 +1,4 @@
-# Settlement Core — v0.2.1 (library)
+# Settlement Core — v0.3.0 (library)
 
 The shared base for the settlement modules. It has **no windows**. It holds the common concepts (tiles, resources, buildings), applies every change through one GM-hosted pipeline, publishes a player-safe copy, and runs the week clock. Tiles, Settlement and Teams build their screens on top of it.
 
@@ -86,10 +86,38 @@ Writes return a Promise and are applied by the hosting GM's client, so a GM must
 
 `registerAction("yourmodule.name", { permission: "gm" | "player", run(state, args, ctx) })` adds your own change to the pipeline. `run` edits `state` directly and may return a value; `ctx` is `{ reg, isGM, userId }`. Throw an `Error` to reject; nothing is saved.
 
+## Several steps in one action: `ctx.core`
+
+A registered action is all-or-nothing: if `run` throws, nothing is saved. Inside `run`, use `ctx.core` for core's own rules. It has the same names and arguments as the public API, acts on that run's state, and returns directly (no Promise).
+
+```js
+core.registerAction("yourmodule.applyAttempt", { run(state, a, ctx) {
+  ctx.core.adjustResource(a.settlementId, "materials", -a.cost);   // throws "Not enough materials"
+  const res = ctx.core.addProgress(a.host, a.slotId, 1);            // { complete, progress, needed }
+  if (res.complete) { /* ... */ }
+  return res;                                                        // anything thrown above rolls it all back
+} });
+```
+
+`ctx.core` has: `getState`, `getTile`, `getSettlement`, `getClock`, `get`, `all`, `tileDCs`, `tileModifiers`, `tileSecurity`, `isFullyExplored`, `isSecure`, `degree`, `leaderSecurity`, `activityDC`, `buildDC`, `weeksFor`, `workProfile`, `canAttach`, `buildOptions`, `builtOn`, `attach`, `addProgress`, `cancelPending`, `detach`, `setDamaged`, `adjustResource`, `setAccess`, `addExplore`, `advancePhase`.
+
+Rules for `run`:
+
+- **Never call `core.request` or any API write from inside it.** It would wait on the write queue that is running it.
+- **Keep it fast and free of side effects.** It holds the queue for every module. Roll dice and show dialogs first and pass the results in as args; post chat messages after the request resolves.
+- **Permissions are yours.** `ctx.core` does not re-check GM permission, so a `permission: "player"` action can change anything it calls. Check `ctx.isGM` and `ctx.userId` where it matters.
+- `ctx.core` is missing before 0.3.0; feature-detect it.
+
 ## Storage
 
 - Full state: a GM-only journal entry, "Settlement Core — Private State".
 - Player copy: the world setting `settlement-core.public`, rewritten after every change.
+
+## Changes in v0.3.0
+
+- `ctx.core` inside registered actions (see above).
+- `weeksFor(buildingId, upgrading = false)` added to the public API.
+- Nothing removed or renamed.
 
 ## Changes in v0.2.1
 

@@ -1,7 +1,7 @@
 import * as C from "./core.mjs";
 import { LIFTLAND } from "./content-liftland.mjs";
 
-const ID = "settlement-core", CHANNEL = `module.${ID}`, VERSION = "0.2.1";
+const ID = "settlement-core", CHANNEL = `module.${ID}`, VERSION = "0.3.0";
 const STORE_NAME = "Settlement Core — Private State", PAGE_NAME = "State JSON";
 const gm = () => !!game.user?.isGM;
 const authority = () => game.users?.filter(u => u.active && u.isGM).sort((a, b) => a.id.localeCompare(b.id))[0]?.id;
@@ -44,7 +44,7 @@ function mutate(name, args, sender) {
     if (!host()) throw Error("An active GM must be online to change settlement data");
     const page = await ensureStore();
     const state = getState();
-    const ctx = { reg: registry, isGM: !!sender?.isGM, userId: sender?.id };
+    const ctx = { reg: registry, isGM: !!sender?.isGM, userId: sender?.id, core: C.bindRules(state, registry) };
     const result = await C.runAction(actions, state, name, args, ctx);
     state.revision++;
     const clean = C.validateState(state);
@@ -111,7 +111,8 @@ const api = {
   tileModifiers: (sceneId, key) => { const t = C.getTile(getState(), sceneId, key); return t ? C.tileModifiers(t, registry) : null; },
   tileSecurity: (sceneId, key) => C.tileSecurity(getState(), registry, sceneId, key),
   isSecure: C.isSecure, isFullyExplored: (sceneId, key) => C.isFullyExplored(C.getTile(getState(), sceneId, key)),
-  degree: C.degree, buildDC: id => C.buildDC(registry.get("buildings", id), registry), activityDC: id => C.activityDC(registry, id),
+  degree: C.degree, buildDC: id => C.buildDC(registry.get("buildings", id), registry),
+  weeksFor: (buildingId, upgrading = false) => C.weeksFor(registry.get("buildings", buildingId), upgrading), activityDC: id => C.activityDC(registry, id),
   workProfile: ref => C.workProfile(getState(), registry, ref), leaderSecurity: C.leaderSecurity,
   builtOn: host => C.builtOn(C.resolveHost(getState(), hostRef(host)).target, registry),
   canAttach: (host, buildingId) => C.canAttach(getState(), registry, host, buildingId),

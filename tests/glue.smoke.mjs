@@ -38,6 +38,19 @@ test("init, register hook, ready, API round trip", async () => {
   assert.equal(api.getClock().week, 1); assert.ok(fired.includes("settlementCore.phase"));
   await api.request("teams.setNote", { note: "hello" }); assert.equal(api.getModuleData("teams").public.note, "hello");
   assert.throws(() => api.registerAction("tile.save", { run() {} }));
+  // ctx.core inside a registered action: all-or-nothing
+  api.registerAction("teams.payAndBuild", { run(s, x, ctx) {
+    ctx.core.adjustResource("main", "rations", -x.cost);
+    const res = ctx.core.addProgress(x.host, x.slotId, 1);   // throws when nothing is pending
+    return res.complete;
+  } });
+  const before = api.getSettlement("main").resources.rations.amount;
+  await assert.rejects(api.request("teams.payAndBuild", { cost: 2, host, slotId: "nope" }));
+  assert.equal(api.getSettlement("main").resources.rations.amount, before);        // the spend was rolled back
+  const up = await api.attach(host, "farm-2");
+  assert.equal(await api.request("teams.payAndBuild", { cost: 2, host, slotId: up }), true);
+  assert.equal(api.getSettlement("main").resources.rations.amount, before - 2);
+  assert.equal(api.weeksFor("farm-2", true), 1);
   // what players receive
   const pub = JSON.stringify(settings.get("public"));
   assert.ok(!pub.includes("gm only")); assert.ok(!pub.includes("hidden")); assert.ok(pub.includes("hello"));

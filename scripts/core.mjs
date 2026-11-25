@@ -263,7 +263,7 @@ export function publicState(state) {
 }
 
 /* ---------------------------------------------------------------- built-in actions */
-/** Each action: { permission: "gm" | "player", run(state, args, ctx) }. ctx = { reg, userId, isGM }. */
+/** Each action: { permission: "gm" | "player", run(state, args, ctx) }. ctx = { reg, userId, isGM, core } where core = bindRules(state, reg). */
 export const ACTIONS = {
   "tile.save": { permission: "gm", run(s, a) { const t = ensureTile(s, a.sceneId, a.key); s.tiles[a.sceneId][a.key] = cleanTile(a.key, { ...t, ...obj(a.patch), discoverables: a.patch?.discoverables ?? t.discoverables, slots: t.slots }); } },
   "tile.delete": { permission: "gm", run(s, a) { if (s.tiles[a.sceneId]) delete s.tiles[a.sceneId][a.key]; } },
@@ -288,6 +288,47 @@ export const ACTIONS = {
   "clock.advance": { permission: "gm", run(s) { return advancePhase(s); } },
   "clock.set": { permission: "gm", run(s, a) { if (PHASES.includes(a.phase)) s.phase = a.phase; if (a.week !== undefined) s.week = clampInt(a.week); } }
 };
+/**
+ * Core's rules bound to one state and registry, for use inside an action's run(). Same names and arguments as the
+ * public API, but they act on this state directly and return at once (no Promise). Anything that throws rolls the
+ * whole action back, because the caller only saves when run() finishes.
+ */
+export function bindRules(state, reg) {
+  const def = id => reg.get("buildings", id);
+  return {
+    // reads
+    getState: () => state,
+    getTile: (sceneId, key) => getTile(state, sceneId, key),
+    getSettlement: id => state.settlements[id] || null,
+    getClock: () => ({ phase: state.phase, week: state.week }),
+    get: (kind, id) => reg.get(kind, id),
+    all: kind => reg.all(kind),
+    // rules
+    tileDCs: (sceneId, key, options) => { const t = getTile(state, sceneId, key); return t ? tileDCs(t, reg, options) : null; },
+    tileModifiers: (sceneId, key) => { const t = getTile(state, sceneId, key); return t ? tileModifiers(t, reg) : null; },
+    tileSecurity: (sceneId, key) => tileSecurity(state, reg, sceneId, key),
+    isFullyExplored: (sceneId, key) => isFullyExplored(getTile(state, sceneId, key)),
+    isSecure, degree, leaderSecurity,
+    activityDC: id => activityDC(reg, id),
+    buildDC: buildingId => buildDC(def(buildingId), reg),
+    weeksFor: (buildingId, upgrading = false) => weeksFor(def(buildingId), upgrading),
+    workProfile: ref => workProfile(state, reg, ref),
+    canAttach: (host, buildingId) => canAttach(state, reg, host, buildingId),
+    buildOptions: host => buildOptions(state, reg, host),
+    builtOn: host => builtOn(resolveHost(state, host).target, reg),
+    // changes
+    attach: (host, buildingId, complete = false) => attach(state, reg, host, buildingId, { complete: !!complete }),
+    addProgress: (host, slotId, weeks = 1) => addProgress(state, reg, host, slotId, weeks),
+    cancelPending: (host, slotId) => cancelPending(state, host, slotId),
+    detach: (host, slotId) => detach(state, host, slotId),
+    setDamaged: (host, slotId, damaged = true) => setDamaged(state, host, slotId, damaged),
+    adjustResource: (settlementId, resource, delta) => adjustResource(state, settlementId, resource, clampInt(delta, -999999999)),
+    setAccess: (settlementId, resource, access) => setAccess(state, settlementId, resource, access),
+    addExplore: (sceneId, key, count = 1) => { const t = ensureTile(state, sceneId, key); t.explores = clampInt(t.explores + count, 0, 99); return t.explores; },
+    advancePhase: () => advancePhase(state)
+  };
+}
+
 /** Run one action against a state. Throws on a permission or rule failure and leaves the caller's state untouched (work on a copy). */
 export function runAction(actions, state, name, args, ctx) {
   const action = actions[name]; if (!action) throw Error(`Unknown action "${name}"`);
