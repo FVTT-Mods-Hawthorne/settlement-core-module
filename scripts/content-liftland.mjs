@@ -1,5 +1,12 @@
 /** Default content: the Liftland campaign's numbers. Replace or extend any entry with api.define(kind, id, def). */
 const B = (label, complexity, hosts, extra = {}) => ({ label, complexity, hosts, ...extra });
+// `produces` is the resource a Work on it yields: a resource id, or null when it yields specific items rather than a stock.
+const PRODUCES = {
+  supplies: ["glow-moth-swarm-site", "herb-cluster", "shatter-pod-field", "dangerous-flora", "hot-spring", "thermal-vent", "crystal-waters-pool", "supply-cache"],
+  materials: ["vein-leaf-stand", "stone-outcrop", "clay-deposit", "sand-deposit", "tool-cache", "stone-foundation", "workshop-remnant"],
+  resources: ["shade-hopper-warren", "sharp-hawk-nest", "canopy-glider-colony", "coil-fern-bed", "torch-stalk-grove", "drift-moss-mat"],
+  none: ["ridge-runner-territory", "sky-lance-hunting-range", "crest-stalker-territory", "crystal-bloom-formation", "spring", "crystal-growth-outcrop", "life-energy-deposit", "resonance-bloom", "hollow-root-network"]
+};
 const D = (label, category, extra = {}) => ({ label, category, renewable: category === "fauna" || category === "flora", skills: ["nature", "athletics"], ...extra });
 
 export const LIFTLAND = {
@@ -96,3 +103,11 @@ export const LIFTLAND = {
     aid: { label: "Aid", cost: 1, teams: false, dc: 20 }
   }
 };
+
+// Fill in what each discoverable produces: food sources give Rations, the rest come from the lists above.
+for (const [id, d] of Object.entries(LIFTLAND.discoverables)) {
+  if (d.produces !== undefined) continue;
+  if (d.food) d.produces = "rations";
+  else if (PRODUCES.none.includes(id)) d.produces = null;
+  else d.produces = Object.keys(PRODUCES).find(k => PRODUCES[k].includes(id)) ?? null;
+}

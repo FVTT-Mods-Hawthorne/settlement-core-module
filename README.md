@@ -1,4 +1,4 @@
-# Settlement Core — v0.2.0 (library)
+# Settlement Core — v0.2.1 (library)
 
 The shared base for the settlement modules. It has **no windows**. It holds the common concepts (tiles, resources, buildings), applies every change through one GM-hosted pipeline, publishes a player-safe copy, and runs the week clock. Tiles, Settlement and Teams build their screens on top of it.
 
@@ -77,7 +77,7 @@ Writes return a Promise and are applied by the hosting GM's client, so a GM must
 |---|---|
 | `saveTile(sceneId, key, patch)`, `revealTile`, `addExplore(sceneId, key, count?)`, `setTag(sceneId, key, tag, value)` | `tile.save`, `tile.reveal`, `tile.explore`, `tile.setTag`, `tile.delete` |
 | `addDiscoverable(sceneId, key, data)`, `updateDiscoverable(sceneId, key, id, patch)` | `discoverable.add`, `.update`, `.remove` |
-| `attach(host, buildingId, complete?)`, `addProgress(host, slotId, weeks)`, `detach`, `setDamaged` | `building.attach`, `.progress`, `.detach`, `.damage` |
+| `attach(host, buildingId, complete?)`, `addProgress(host, slotId, weeks)`, `cancelPending(host, slotId)`, `detach`, `setDamaged` | `building.attach`, `.progress`, `.cancel`, `.detach`, `.damage` |
 | `createSettlement(name, home, id?)`, `patchSettlement(id, patch)` | `settlement.create`, `.patch`, `.delete` |
 | `adjustResource(settlementId, resource, delta)`, `setAccess(settlementId, resource, bool)` | `resource.adjust`, `resource.setAccess` |
 | `advancePhase()` | `clock.advance`, `clock.set` |
@@ -90,6 +90,12 @@ Writes return a Promise and are applied by the hosting GM's client, so a GM must
 
 - Full state: a GM-only journal entry, "Settlement Core — Private State".
 - Player copy: the world setting `settlement-core.public`, rewritten after every change.
+
+## Changes in v0.2.1
+
+- `cancelPending(host, slotId)` (`building.cancel`): drops a pending build. An upgrade keeps the finished earlier level; a new build frees its slot. Use this, not detach-then-attach, which fails for any building with `requires`.
+- Every discoverable definition has `produces`: a resource id, or `null` when Working it yields specific items.
+- Access labels: `setAccess(settlementId, label, bool)` accepts any label ("lumber", "stone"), not only the four resource ids. Those entries sit in `settlement.resources` with amount 0.
 
 ## Changes in v0.2.0
 

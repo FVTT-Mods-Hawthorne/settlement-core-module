@@ -81,6 +81,21 @@ test("general improvements: levels count against the resource's tier and change 
   assert.equal(C.workProfile(s, r, host).die, "d12");
   assert.equal(C.buildDC(r.get("buildings", "yield-1"), r), 30); assert.equal(C.buildDC(r.get("buildings", "yield-3"), r), 34);
 });
+test("cancel a pending build; every discoverable says what it produces", () => {
+  const { r, s } = setup();
+  const id = run(s, r, "discoverable.add", { sceneId: "S", key: "1,1", data: { type: "herb-cluster", tier: 3 } });
+  const host = { kind: "discoverable", sceneId: "S", key: "1,1", id };
+  const y = run(s, r, "building.attach", { host, building: "yield-1", complete: true });
+  run(s, r, "building.attach", { host, building: "yield-2", complete: true });
+  run(s, r, "building.attach", { host, building: "yield-3" });
+  assert.equal(run(s, r, "building.cancel", { host, slotId: y }), "kept");
+  assert.equal(C.resolveHost(s, host).target.slots[0].built, "yield-2"); assert.equal(C.resolveHost(s, host).target.slots[0].pending, null);
+  const d = run(s, r, "building.attach", { host, building: "difficulty-dc-1" });
+  assert.equal(run(s, r, "building.cancel", { host, slotId: d }), "removed"); assert.equal(C.resolveHost(s, host).target.slots.length, 1);
+  assert.throws(() => run(s, r, "building.cancel", { host, slotId: y }));
+  for (const x of r.all("discoverables")) assert.ok(x.produces === null || r.has("resources", x.produces), x.id);
+  assert.equal(r.get("discoverables", "herb-cluster").produces, "supplies"); assert.equal(r.get("discoverables", "pebble-hen-nest").produces, "rations");
+});
 test("security from tile buildings and a settlement at home", () => {
   const { r, s, tile } = setup();
   run(s, r, "building.attach", { host: { kind: "settlement", id: "main" }, building: "portal-hall", complete: true });

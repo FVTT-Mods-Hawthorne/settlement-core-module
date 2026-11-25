@@ -159,6 +159,13 @@ export function detach(state, ref, slotId) {
   const { target } = resolveHost(state, ref); const n = target.slots.length;
   target.slots = target.slots.filter(s => s.id !== slotId); if (target.slots.length === n) throw Error("Unknown slot");
 }
+/** Drop a pending build. An upgrade in progress keeps the finished earlier level; a new build frees its slot. Returns "kept" or "removed". */
+export function cancelPending(state, ref, slotId) {
+  const { target } = resolveHost(state, ref); const slot = target.slots.find(s => s.id === slotId);
+  if (!slot?.pending) throw Error("Nothing is being built in that slot");
+  if (slot.built) { slot.pending = null; return "kept"; }
+  target.slots = target.slots.filter(s => s.id !== slotId); return "removed";
+}
 export function setDamaged(state, ref, slotId, damaged) {
   const { target } = resolveHost(state, ref); const slot = target.slots.find(s => s.id === slotId); if (!slot) throw Error("Unknown slot");
   slot.damaged = !!damaged;
@@ -270,6 +277,7 @@ export const ACTIONS = {
   "discoverable.remove": { permission: "gm", run(s, a) { const t = getTile(s, a.sceneId, a.key); if (!t) throw Error("Unknown tile"); t.discoverables = t.discoverables.filter(d => d.id !== a.id); } },
   "building.attach": { permission: "gm", run(s, a, c) { return attach(s, c.reg, a.host, a.building, { complete: !!a.complete }); } },
   "building.progress": { permission: "gm", run(s, a, c) { return addProgress(s, c.reg, a.host, a.slotId, a.weeks ?? 1); } },
+  "building.cancel": { permission: "gm", run(s, a) { return cancelPending(s, a.host, a.slotId); } },
   "building.detach": { permission: "gm", run(s, a) { detach(s, a.host, a.slotId); } },
   "building.damage": { permission: "gm", run(s, a) { setDamaged(s, a.host, a.slotId, a.damaged !== false); } },
   "settlement.create": { permission: "gm", run(s, a, c) { const id = a.id || uid(); if (s.settlements[id]) throw Error("That settlement already exists"); s.settlements[id] = blankSettlement(id, a.name, c.reg); if (a.home) s.settlements[id].home = a.home; return id; } },

@@ -1,7 +1,7 @@
 import * as C from "./core.mjs";
 import { LIFTLAND } from "./content-liftland.mjs";
 
-const ID = "settlement-core", CHANNEL = `module.${ID}`, VERSION = "0.2.0";
+const ID = "settlement-core", CHANNEL = `module.${ID}`, VERSION = "0.2.1";
 const STORE_NAME = "Settlement Core — Private State", PAGE_NAME = "State JSON";
 const gm = () => !!game.user?.isGM;
 const authority = () => game.users?.filter(u => u.active && u.isGM).sort((a, b) => a.id.localeCompare(b.id))[0]?.id;
@@ -132,6 +132,7 @@ const api = {
   updateDiscoverable: (sceneId, key, id, patch) => request("discoverable.update", { sceneId, key, id, patch }),
   attach: (host, building, complete = false) => request("building.attach", { host, building, complete }),
   addProgress: (host, slotId, weeks = 1) => request("building.progress", { host, slotId, weeks }),
+  cancelPending: (host, slotId) => request("building.cancel", { host, slotId }),
   detach: (host, slotId) => request("building.detach", { host, slotId }),
   setDamaged: (host, slotId, damaged = true) => request("building.damage", { host, slotId, damaged }),
   createSettlement: (name, home, id) => request("settlement.create", { name, home, id }),
