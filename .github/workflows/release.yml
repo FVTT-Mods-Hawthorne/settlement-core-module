@@ -2,8 +2,8 @@ name: Publish beta release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout tagged source
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Validate version tag and module manifest
@@ -21,21 +21,12 @@ jobs:
           python3 - <<'PY'
           import json
           import os
-          import re
           from pathlib import Path
 
           manifest = json.loads(Path("module.json").read_text(encoding="utf-8"))
           version = manifest["version"]
           tag = f"v{version}"
-          ref_name = os.environ["GITHUB_REF_NAME"]
           repository = os.environ["GITHUB_REPOSITORY"]
-
-          assert re.fullmatch(r"v\d+\.\d+\.\d+", ref_name), (
-              f"Release tags must use vMAJOR.MINOR.PATCH; received {ref_name!r}"
-          )
-          assert ref_name == tag, (
-              f"Tag {ref_name!r} does not match module.json version {version!r}"
-          )
 
           expected_manifest = (
               f"https://github.com/{repository}/releases/download/{tag}/module.json"
@@ -73,9 +64,9 @@ jobs:
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
               --title "$RELEASE_TAG beta" \
-              --notes "Settlement Teams beta release. Includes a versioned module.json manifest and an installable Foundry VTT module ZIP." \
+              --notes "Settlement Core v0.3.1 adds optional per-tile Travel, Explore, and Forage DC overrides while preserving the calculated defaults. Includes a versioned module.json manifest and an installable Foundry VTT module ZIP." \
               --prerelease \
-              --verify-tag
+              --target "$GITHUB_SHA"
           fi
 
       - name: Upload ZIP and module.json as separate release assets

@@ -28,8 +28,9 @@ const core = game.modules.get("settlement-core").api;
 **Definitions** live in a registry with six kinds: `resources`, `terrains`, `tags`, `buildings`, `discoverables`, `activities`. The Liftland set loads by default (setting: *Load the Liftland content set*). Any entry can be replaced with `core.define(kind, id, def)`.
 
 **Tile** — addressed by `sceneId` + `key` (`"row,col"`).
-`{ key, name, terrain, adjust, tags: { id: true | "state" }, revealed, explores, discoverables: [...], slots: [...], notes, gmNotes, ext }`
+`{ key, name, terrain, adjust, dcs: { travel, explore, forage }, tags: { id: true | "state" }, revealed, explores, discoverables: [...], slots: [...], notes, gmNotes, ext }`
 - `terrain` is a terrain id. `adjust` is a per-tile Difficulty tweak.
+- `dcs.travel`, `dcs.explore`, and `dcs.forage` are optional exact overrides. Leave a value `null` to use the calculated terrain, tag, exploration, discoverable, and building result.
 - Hills are tags (`low-hills` +1/+1, `steep-hills` +3/+3), as are `lifted`, `coastal`, `crystal-growth` and `crystal-waters` (states `present` / `dense`). Tags can carry `difficulty` and `forage` modifiers and an `overlay` flag for the Tiles module to draw.
 - `explores` counts successful Explore activities. Fully Explored = revealed and 6 of them (`activities.explore.successesNeeded`), whatever was found. Add one with `addExplore(sceneId, key)`.
 

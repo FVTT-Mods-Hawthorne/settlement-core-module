@@ -45,6 +45,16 @@ test("tile DCs: base 25, hills as tags, water, six explores", () => {
   r.define("activities", "travel", { label: "Travel", cost: 1, dc: 15 }); assert.equal(C.tileDCs(T(), r).travel, 15);
   assert.equal(C.validateState({ tiles: { S: { "1,1": { unknownResolved: true } } } }).tiles.S["1,1"].explores, 6);
 });
+
+test("tile DC overrides replace individual calculated values", () => {
+  const r = reg();
+  const tile = C.cleanTile("1,1", { terrain: "woodland", dcs: { travel: 31, explore: "", forage: 12 } });
+  const dcs = C.tileDCs(tile, r);
+  assert.equal(dcs.travel, 31);
+  assert.equal(dcs.explore, 27);
+  assert.equal(dcs.forage, 12);
+  assert.deepEqual(tile.dcs, { travel: 31, explore: null, forage: 12 });
+});
 test("buildings attach to hosts, levels require the previous level, progress lives on the slot", () => {
   const { r, s, tile } = setup();
   assert.equal(C.canAttach(s, r, tile, "farm-1").ok, false);                 // woodland

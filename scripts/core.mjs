@@ -33,7 +33,7 @@ export function createRegistry() {
 /* ---------------------------------------------------------------- blank data */
 export const blankState = () => ({ schema: SCHEMA, revision: 0, week: 0, phase: PHASES[0], settlements: {}, tiles: {}, modules: {} });
 export const blankSlot = () => ({ id: uid(), built: "", pending: null, damaged: false });
-export const blankTile = key => ({ key: String(key), name: "", terrain: "", adjust: 0, tags: {}, revealed: false, explores: 0, discoverables: [], slots: [], notes: "", gmNotes: "", ext: {} });
+export const blankTile = key => ({ key: String(key), name: "", terrain: "", adjust: 0, dcs: { travel: null, explore: null, forage: null }, tags: {}, revealed: false, explores: 0, discoverables: [], slots: [], notes: "", gmNotes: "", ext: {} });
 export const blankDiscoverable = () => ({ id: uid(), type: "", name: "", tier: 1, modifier: "", found: false, slots: [], notes: "", gmNotes: "" });
 export function blankSettlement(id, name, reg) {
   const resources = Object.fromEntries((reg?.all("resources") || []).map(r => [r.id, { amount: 0, access: false }]));
@@ -50,6 +50,10 @@ const cleanExt = ext => Object.fromEntries(Object.entries(obj(ext)).map(([k, v])
 export function cleanTile(key, raw) {
   const t = { ...blankTile(key), ...obj(raw), key: String(key) };
   t.name = text(t.name, 120); t.terrain = text(t.terrain, 60); t.adjust = clampInt(t.adjust, -20, 20);
+  t.dcs = Object.fromEntries(["travel", "explore", "forage"].map(id => {
+    const value = obj(t.dcs)[id];
+    return [id, value === null || value === undefined || value === "" ? null : clampInt(value, 0, 99)];
+  }));
   t.tags = Object.fromEntries(Object.entries(obj(t.tags)).filter(([, v]) => v).map(([k, v]) => [text(k, 60), v === true ? true : text(v, 40)]));
   t.revealed = !!t.revealed; t.explores = clampInt(t.unknownResolved ? EXPLORES_NEEDED : t.explores, 0, 99); delete t.unknownResolved;
   t.discoverables = (Array.isArray(t.discoverables) ? t.discoverables : []).map(d => ({
@@ -193,10 +197,12 @@ export function tileDCs(tile, reg, { familiar = false } = {}) {
   const m = tileModifiers(tile, reg), explored = isFullyExplored(tile, needed) ? -2 : 0;
   const built = builtOn(tile, reg);
   const foodKnown = (tile?.discoverables || []).some(d => d.found && reg.get("discoverables", d.type)?.food) ? -2 : 0;
+  const overrides = obj(tile?.dcs);
+  const override = id => overrides[id] === null || overrides[id] === undefined || overrides[id] === "" ? null : clampInt(overrides[id], 0, 99);
   return {
-    travel: m.impassable ? null : activityDC(reg, "travel") + m.difficulty + explored + effectSum(built, "travelDC") + (familiar ? -2 : 0),
-    explore: m.impassable ? null : activityDC(reg, "explore") + m.difficulty + explored,
-    forage: m.impassable ? null : activityDC(reg, "forage") + m.forage + explored + foodKnown,
+    travel: m.impassable ? null : override("travel") ?? activityDC(reg, "travel") + m.difficulty + explored + effectSum(built, "travelDC") + (familiar ? -2 : 0),
+    explore: m.impassable ? null : override("explore") ?? activityDC(reg, "explore") + m.difficulty + explored,
+    forage: m.impassable ? null : override("forage") ?? activityDC(reg, "forage") + m.forage + explored + foodKnown,
     impassable: m.impassable, fullyExplored: !!explored, explores: tile?.explores || 0, exploresNeeded: needed
   };
 }
