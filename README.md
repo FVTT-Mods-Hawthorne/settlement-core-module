@@ -1,4 +1,4 @@
-# Settlement Core — v0.1.0 (library)
+# Settlement Core — v0.3.0 (library)
 
 The shared base for the settlement modules. It has **no windows**. It holds the common concepts (tiles, resources, buildings), applies every change through one GM-hosted pipeline, publishes a player-safe copy, and runs the week clock. Tiles, Settlement and Teams build their screens on top of it.
 
@@ -106,22 +106,32 @@ Rules for `run`:
 - **Never call `core.request` or any API write from inside it.** It would wait on the write queue that is running it.
 - **Keep it fast and free of side effects.** It holds the queue for every module. Roll dice and show dialogs first and pass the results in as args; post chat messages after the request resolves.
 - **Permissions are yours.** `ctx.core` does not re-check GM permission, so a `permission: "player"` action can change anything it calls. Check `ctx.isGM` and `ctx.userId` where it matters.
-- `ctx.core` is included in this initial public release. Dependent modules should still feature-detect it when supporting older development builds.
+- `ctx.core` is missing before 0.3.0; feature-detect it.
 
 ## Storage
 
 - Full state: a GM-only journal entry, "Settlement Core — Private State".
 - Player copy: the world setting `settlement-core.public`, rewritten after every change.
 
-## Initial public release — v0.1.0
+## Changes in v0.3.0
 
-This reset release establishes the public version line for Settlement Core and includes the complete current library API:
+- `ctx.core` inside registered actions (see above).
+- `weeksFor(buildingId, upgrading = false)` added to the public API.
+- Nothing removed or renamed.
 
-- GM-hosted atomic write pipeline with player-safe state publication.
-- Tiles, terrain tags, discoverables, buildings, settlement resources, and the four-phase week clock.
-- Registered extension actions with transactional `ctx.core` rule helpers.
-- Building progress and cancellation, resource access labels, exploration tracking, activity DCs, leader security, and work profiles.
-- `weeksFor(buildingId, upgrading = false)` in the public API.
+## Changes in v0.2.1
+
+- `cancelPending(host, slotId)` (`building.cancel`): drops a pending build. An upgrade keeps the finished earlier level; a new build frees its slot. Use this, not detach-then-attach, which fails for any building with `requires`.
+- Every discoverable definition has `produces`: a resource id, or `null` when Working it yields specific items.
+- Access labels: `setAccess(settlementId, label, bool)` accepts any label ("lumber", "stone"), not only the four resource ids. Those entries sit in `settlement.resources` with amount 0.
+
+## Changes in v0.2.0
+
+- Base DCs raised and moved into the activity definitions.
+- General Resource Improvements (Yield, Difficulty) replace the named ones; limit is total levels per tier.
+- Fully Explored is 6 successful Explores; `unknownResolved` is gone (old data converts).
+- `workProfile`, `activityDC`, `leaderSecurity`, `addExplore` added. `COMPLEXITY` removed.
+- Provisional numbers, to be confirmed by the rules: improvement levels 3-4 (weeks = level, Materials per week = level) and the +2 DC per level.
 
 ## Not in this version
 
