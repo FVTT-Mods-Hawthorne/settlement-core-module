@@ -2,7 +2,7 @@
   "id": "settlement-core",
   "title": "Settlement Core",
   "description": "Library module: shared tiles, resources and buildings, one GM-hosted write pipeline, player-safe views and a week clock, for the Tiles, Settlement and Teams modules to build on.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "library": true,
   "authors": [
     {
@@ -27,5 +27,5 @@
   "license": "MIT",
   "url": "https://github.com/FVTT-Mods-Hawthorne/settlement-core-module",
   "manifest": "https://raw.githubusercontent.com/FVTT-Mods-Hawthorne/settlement-core-module/main/module.json",
-  "download": "https://github.com/FVTT-Mods-Hawthorne/settlement-core-module/releases/download/v0.3.2/settlement-core-v0.3.2.zip"
+  "download": "https://github.com/FVTT-Mods-Hawthorne/settlement-core-module/releases/download/v0.3.3/settlement-core-v0.3.3.zip"
 }

@@ -64,7 +64,7 @@ jobs:
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
               --title "$RELEASE_TAG beta" \
-              --notes "Settlement Core v0.3.2 moves automatic updates to a permanent main-branch manifest URL. It retains the per-tile Travel, Explore, and Forage DC overrides from v0.3.1. Includes module.json and an installable Foundry VTT module ZIP." \
+              --notes "Settlement Core v0.3.3 fixes the runtime API version so dependent modules see the installed manifest version instead of a stale hard-coded 0.3.0. Automatic updates continue through the permanent main-branch manifest. Includes module.json and an installable Foundry VTT module ZIP." \
               --prerelease \
               --target "$GITHUB_SHA"
           fi

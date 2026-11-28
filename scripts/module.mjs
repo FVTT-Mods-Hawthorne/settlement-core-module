@@ -1,7 +1,7 @@
 import * as C from "./core.mjs";
 import { LIFTLAND } from "./content-liftland.mjs";
 
-const ID = "settlement-core", CHANNEL = `module.${ID}`, VERSION = "0.3.0";
+const ID = "settlement-core", CHANNEL = `module.${ID}`, VERSION = "0.3.3";
 const STORE_NAME = "Settlement Core — Private State", PAGE_NAME = "State JSON";
 const gm = () => !!game.user?.isGM;
 const authority = () => game.users?.filter(u => u.active && u.isGM).sort((a, b) => a.id.localeCompare(b.id))[0]?.id;
@@ -91,7 +91,8 @@ function onChanged() {
 /* ---------------------------------------------------------------- public API */
 const hostRef = h => h;
 const api = {
-  version: VERSION, PHASES: C.PHASES, HOST_KINDS: C.HOST_KINDS, DICE: C.DICE,
+  get version() { return game.modules.get(ID)?.version || game.modules.get(ID)?.manifest?.version || VERSION; },
+  PHASES: C.PHASES, HOST_KINDS: C.HOST_KINDS, DICE: C.DICE,
   // definitions
   registry,
   define: (kind, id, def) => registry.define(kind, id, def),

@@ -1,4 +1,4 @@
-# Settlement Core — v0.3.2 (library)
+# Settlement Core — v0.3.3 (library)
 
 The shared base for the settlement modules. It has **no windows**. It holds the common concepts (tiles, resources, buildings), applies every change through one GM-hosted pipeline, publishes a player-safe copy, and runs the week clock. Tiles, Settlement and Teams build their screens on top of it.
 

@@ -9,7 +9,7 @@ const page = { name: "State JSON", text: { content: "" }, async update(d) { this
 let journal = null;
 globalThis.JournalEntry = { async create(d) { journal = { ...d, getFlag: () => true, pages: { find: () => null }, async createEmbeddedDocuments(_t, [p]) { page.text.content = p.text.content; journal.pages = { find: f => [page].find(f) }; return [page]; } }; return journal; } };
 const user = { id: "u1", isGM: true, active: true };
-const mod = {};
+const mod = { version: "9.8.7" };
 globalThis.game = {
   user, users: { filter: f => [user].filter(f), get: () => user }, journal: { find: f => (journal && f(journal) ? journal : undefined) },
   settings: { register: (m, k, d) => reg.set(k, d), get: (m, k) => settings.has(k) ? settings.get(k) : reg.get(k).default,
@@ -21,7 +21,7 @@ test("init, register hook, ready, API round trip", async () => {
   hooks.init(); const api = mod.api;
   listeners["settlementCore.register"] = [a => { a.define("terrains", "lava", { label: "Lava", difficulty: 9 }); a.registerAction("teams.setNote", { permission: "player", run: (s, x) => { s.modules.teams = { public: { note: x.note }, gm: { hidden: 1 } }; } }); }];
   hooks.setup(); await hooks.ready();
-  assert.ok(fired.includes("settlementCore.ready")); assert.equal(api.get("terrains", "lava").difficulty, 9);
+  assert.ok(fired.includes("settlementCore.ready")); assert.equal(api.version, "9.8.7"); assert.equal(api.get("terrains", "lava").difficulty, 9);
   assert.equal(api.all("resources").length, 4);
   await api.saveTile("S", "3,4", { terrain: "grassland", revealed: true, gmNotes: "gm only" });
   await api.setTag("S", "3,4", "low-hills");
