@@ -73,7 +73,7 @@ jobs:
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
               --title "$RELEASE_TAG beta" \
-              --notes "Settlement Teams beta release. Includes a versioned module.json manifest and an installable Foundry VTT module ZIP." \
+              --notes "Settlement Core v0.1.0 beta establishes the initial public version line for the shared tiles, resources, buildings, settlement state, player-safe views, GM-hosted write pipeline, and week-clock library. Includes a versioned module.json manifest and an installable Foundry VTT module ZIP." \
               --prerelease \
               --verify-tag
           fi
