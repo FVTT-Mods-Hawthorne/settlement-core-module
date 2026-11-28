@@ -29,7 +29,7 @@ jobs:
           repository = os.environ["GITHUB_REPOSITORY"]
 
           expected_manifest = (
-              f"https://github.com/{repository}/releases/download/{tag}/module.json"
+              f"https://raw.githubusercontent.com/{repository}/main/module.json"
           )
           expected_zip = f"settlement-core-{tag}.zip"
           expected_download = (
@@ -64,7 +64,7 @@ jobs:
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
               --title "$RELEASE_TAG beta" \
-              --notes "Settlement Core v0.3.1 adds optional per-tile Travel, Explore, and Forage DC overrides while preserving the calculated defaults. Includes a versioned module.json manifest and an installable Foundry VTT module ZIP." \
+              --notes "Settlement Core v0.3.2 moves automatic updates to a permanent main-branch manifest URL. It retains the per-tile Travel, Explore, and Forage DC overrides from v0.3.1. Includes module.json and an installable Foundry VTT module ZIP." \
               --prerelease \
               --target "$GITHUB_SHA"
           fi
@@ -75,6 +75,18 @@ jobs:
         shell: bash
         run: |
           gh release upload "$RELEASE_TAG" "$RELEASE_ZIP" module.json --clobber
+
+      - name: Bridge older installed manifests to the stable update channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release list --limit 100 --json tagName --jq '.[].tagName' |
+          while read -r OLD_TAG; do
+            if [ -n "$OLD_TAG" ] && [ "$OLD_TAG" != "$RELEASE_TAG" ]; then
+              gh release upload "$OLD_TAG" module.json --clobber
+            fi
+          done
 
       - name: Verify release assets
         env:

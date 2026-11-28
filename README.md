@@ -1,6 +1,8 @@
-# Settlement Core — v0.3.0 (library)
+# Settlement Core — v0.3.2 (library)
 
 The shared base for the settlement modules. It has **no windows**. It holds the common concepts (tiles, resources, buildings), applies every change through one GM-hosted pipeline, publishes a player-safe copy, and runs the week clock. Tiles, Settlement and Teams build their screens on top of it.
+
+Automatic updates use the permanent manifest URL `https://raw.githubusercontent.com/FVTT-Mods-Hawthorne/settlement-core-module/main/module.json`. Release ZIP URLs remain version-specific.
 
 > **Untested in Foundry.** The data model, rules and the Foundry glue (against stubbed globals) pass Node tests: `node --test tests/core.test.mjs tests/glue.smoke.mjs`. Nothing has run in a live world. Back up first.
 
